@@ -12,10 +12,6 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
-# Données générées
-data/*.csv
-data/*.parquet
-data/raw/
 
 # Système
 .DS_Store
