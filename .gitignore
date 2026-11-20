@@ -1,0 +1,22 @@
+# Environnement Python
+.venv/
+
+# Clés secrètes et configuration locale
+.env
+
+# Fichiers temporaires Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Données générées
+data/*.csv
+data/*.parquet
+data/raw/
+
+# Système
+.DS_Store
+Thumbs.db
