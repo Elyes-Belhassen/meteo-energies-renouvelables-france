@@ -1,6 +1,7 @@
 # Météo, énergies renouvelables et système électrique français (2020–2025)
 
-**Projet de Python pour la Data Science**  
+**Projet de Python pour la Data Science**
+
 **Équipe : Elyes, Melchior et Romain**
 
 ## Présentation
@@ -9,114 +10,188 @@ Ce projet étudie les relations entre les conditions météorologiques, la produ
 
 **Problématique :** Dans quelle mesure la température, le vent et l'ensoleillement sont-ils associés à la production éolienne et solaire, à la consommation et à la charge résiduelle du système électrique français ?
 
-Nous utilisons deux jeux de données historiques, RTE et Open-Meteo, pour construire une analyse exploratoire reproductible avec Python. Le projet **ne porte pas sur les prix de marché** : aucune série de prix de l'électricité n'est utilisée dans les analyses actuelles.
+Nous utilisons deux jeux de données historiques, RTE et Open-Meteo, pour construire une analyse exploratoire reproductible avec Python.
+
+Le projet ne porte pas sur les prix de marché : aucune série de prix de l'électricité n'est utilisée dans les analyses actuelles.
 
 ## Sources de données
 
 ### RTE — éCO2mix
 
-**Source :** [ODRÉ / RTE](https://odre.opendatasoft.com/)
+**Source :** https://odre.opendatasoft.com/
 
-Données nationales de production, de consommation et d'échanges d'électricité. Les variables exploitées comprennent :
+RTE fournit des données nationales de production, de consommation et d'échanges d'électricité.
 
-- `consommation` : consommation électrique (MW) ;
-- `eolien` et `solaire` : production éolienne et solaire (MW) ;
-- `nucleaire`, `hydraulique` et `gaz` : autres productions électriques (MW) ;
-- `ech_physiques` : solde des échanges physiques (MW) ;
+Les variables utilisées comprennent :
+
+- `consommation` : consommation électrique (MW).
+- `eolien` et `solaire` : production éolienne et solaire (MW).
+- `nucleaire`, `hydraulique` et `gaz` : autres productions électriques (MW).
+- `ech_physiques` : solde des échanges physiques (MW).
 - `charge_residuelle_mw` : consommation moins production éolienne et solaire (MW).
 
-Les valeurs de consommation et de production exploitables sont principalement **demi-horaires**. Le fichier brut comporte également des lignes à :15 et :45 dont les variables principales sont manquantes.
+Les observations exploitables sont principalement demi-horaires.
 
-### Open-Meteo — données historiques
+### Open-Meteo — données météorologiques historiques
 
-**Source :** [Open-Meteo](https://open-meteo.com/)
+**Source :** https://open-meteo.com/
 
-Données météorologiques historiques **horaires** issues ici du modèle de réanalyse **ERA5**, récupérées via Open-Meteo pour **Brest, Paris et Marseille** :
+Nous utilisons des données horaires issues du modèle de réanalyse ERA5, récupérées via Open-Meteo pour trois villes françaises : **Brest, Paris et Marseille**.
 
-- `wind_speed_100m` : vitesse du vent à 100 mètres (m/s) ;
-- `shortwave_radiation` : rayonnement solaire (W/m²) ;
+Les variables utilisées sont :
+
+- `wind_speed_100m` : vitesse du vent à 100 mètres (m/s).
+- `shortwave_radiation` : rayonnement solaire (W/m²).
 - `temperature_2m` : température à 2 mètres (°C).
 
-La moyenne simple des trois villes est utilisée dans le notebook de croisement météo–électricité comme **indicateur météorologique approximatif**. Elle ne doit pas être interprétée comme une véritable moyenne météorologique nationale représentative de la France.
+Pour certaines analyses, nous calculons la moyenne des valeurs météorologiques des trois villes. Cette moyenne constitue un indicateur simplifié et ne représente pas exactement les conditions météorologiques de l'ensemble du territoire français.
 
 ## Données et préparation
 
-Les résultats ci-dessous correspondent aux **sorties enregistrées dans les notebooks fournis**, sur la période 2020–2025 :
+Les résultats suivants correspondent aux sorties obtenues dans nos notebooks sur la période **2020–2025**.
 
 | Étape | Nombre d'observations |
 |---|---:|
-| Fichier RTE brut | 210 408 lignes |
-| RTE après suppression des lignes sans consommation | 105 203 demi-heures |
-| Fichier météo, toutes villes confondues | 157 824 lignes |
-| Table RTE–météo après jointure sur les heures communes | 52 601 heures |
+| Base RTE initiale | 210 408 |
+| Base RTE après nettoyage | 105 203 |
+| Base météorologique (3 villes) | 157 824 |
+| Base horaire fusionnée RTE–météo | 52 601 |
 
-Le notebook de croisement :
+### Nettoyage des données RTE
 
-1. Supprime les lignes RTE sans consommation.
-2. Conserve les mesures RTE aux **heures pleines** (`minute == 0`) ; il ne calcule pas encore une moyenne des deux demi-heures.
-3. Calcule, pour chaque heure, la moyenne non pondérée des mesures météo des trois villes.
-4. Effectue une jointure interne sur l'horodatage UTC.
-5. Ramène les valeurs de production solaire négatives à zéro dans la table fusionnée.
-6. Crée les indicateurs suivants :
-   - **Production éolienne et solaire :** `enr_total = eolien + solaire` ;
-   - **Part de la consommation couverte par ces deux filières :** `part_enr = 100 × enr_total / consommation`.
+Le fichier RTE initial contient des observations manquantes, notamment aux quarts d'heure :15 et :45.
 
-Le nom `enr_total` désigne ici **uniquement l'éolien et le solaire**, et non la totalité des productions renouvelables (l'hydraulique est notamment exclue).
+Nous supprimons les lignes pour lesquelles la consommation est manquante afin de conserver les observations exploitables à la demi-heure.
 
-La **charge résiduelle** est définie par :
+### Fusion avec les données météorologiques
 
-$$
-\text{Charge résiduelle (MW)} = \text{Consommation} - \text{Éolien} - \text{Solaire}
-$$
+Pour croiser les deux sources, nous :
+
+1. Conservons les observations RTE aux heures pleines.
+2. Calculons la moyenne horaire des données météorologiques des trois villes.
+3. Réalisons une jointure sur les dates communes en UTC.
+4. Remplaçons les valeurs négatives de production solaire par zéro dans la table fusionnée.
+5. Construisons des indicateurs complémentaires.
+
+La base fusionnée contient **52 601 observations horaires**.
+
+### Indicateurs construits
+
+**Production éolienne et solaire :**
+
+`enr_total = eolien + solaire`
+
+**Part de la consommation couverte par ces deux filières :**
+
+`part_enr = 100 × enr_total / consommation`
+
+**Charge résiduelle :**
+
+`charge_residuelle_mw = consommation - eolien - solaire`
+
+La variable `enr_total` désigne uniquement l'éolien et le solaire, et non l'ensemble des énergies renouvelables.
+
+La charge résiduelle permet d'étudier la consommation qui n'est pas directement couverte par la production éolienne et solaire.
 
 ## Analyses réalisées
 
-### 1. `analyse_rte(1).ipynb` — exploration du système électrique
+### 1. Analyse du système électrique — `analyse_rte(1).ipynb`
 
-Ce notebook réalise :
+Ce notebook est consacré à l'exploration des données électriques françaises.
 
-- la lecture de RTE, la conversion des dates vers le fuseau `Europe/Paris` et la création de variables calendaires ;
-- le nettoyage des lignes sans consommation ;
-- le **profil moyen de consommation par heure** et sa **saisonnalité mensuelle** ;
-- la comparaison des productions **éolienne et solaire par mois** ;
-- l'étude de la **distribution de la charge résiduelle** ;
-- l'identification des **15 demi-heures présentant les plus faibles charges résiduelles** dans l'échantillon.
+**Préparation des données**
 
-### 2. `exploration_meteo.ipynb` — croisement météo et électricité
+- Conversion des horodatages dans le fuseau horaire `Europe/Paris`.
+- Création de variables calendaires : année, mois, jour de la semaine et heure.
+- Identification et suppression des lignes sans consommation.
 
-Ce notebook réalise :
+**Dynamique de la consommation**
 
-- la préparation et la fusion des données RTE et Open-Meteo ;
-- des **statistiques descriptives** (moyennes, écarts-types, quartiles, minima, maxima) ;
-- une **matrice de corrélation** entre variables météorologiques et électriques ;
-- des graphiques de production éolienne selon la vitesse du vent et de production solaire selon le rayonnement (hors nuit) ;
-- une analyse descriptive de la **consommation, du nucléaire et du gaz selon la température** ;
-- une **carte thermique** de la part de la consommation couverte par l'éolien et le solaire selon des classes de vent et de rayonnement.
+- Calcul du profil moyen de consommation selon l'heure de la journée.
+- Analyse de la consommation moyenne par mois.
+- Identification des variations journalières et saisonnières.
 
-Les graphiques sont affichés dans les notebooks. Leur export systématique en fichiers image n'est pas encore mis en place.
+**Production renouvelable**
 
-## Premiers résultats exploratoires
+- Comparaison de la production éolienne et solaire selon le mois.
+- Étude de leurs profils saisonniers respectifs.
 
-Sur les **52 601 observations horaires fusionnées**, les corrélations linéaires calculées dans le notebook météo sont notamment :
+**Charge résiduelle**
 
-| Variables | Corrélation de Pearson |
+- Visualisation de sa distribution.
+- Identification des périodes de faible charge résiduelle.
+- Extraction des 15 demi-heures présentant les plus faibles valeurs dans l'échantillon.
+
+Ces analyses permettent de mieux comprendre les variations de la demande et de la production électrique au cours du temps.
+
+### 2. Analyse météorologique — `exploration_meteo.ipynb`
+
+Ce notebook étudie les relations entre les conditions météorologiques et les variables électriques.
+
+**Préparation et fusion**
+
+- Lecture des bases RTE et Open-Meteo.
+- Nettoyage et harmonisation des horodatages.
+- Fusion des observations horaires.
+- Construction des variables `enr_total` et `part_enr`.
+
+**Statistiques descriptives**
+
+- Moyennes et écarts-types.
+- Valeurs minimales et maximales.
+- Quartiles.
+- Matrice de corrélation entre les variables météorologiques et électriques.
+
+**Relations entre météo et production renouvelable**
+
+- Production éolienne selon la vitesse du vent.
+- Production solaire selon le rayonnement solaire, hors périodes nocturnes.
+- Visualisation des moyennes de production par classes météorologiques.
+
+**Température et consommation**
+
+- Étude de la consommation moyenne selon la température.
+- Comparaison avec les productions nucléaires et au gaz.
+- Analyse descriptive de la thermosensibilité de la demande électrique.
+
+**Conditions météorologiques et renouvelables**
+
+- Classification des observations selon le vent et le rayonnement.
+- Création d'une carte thermique représentant la part de la consommation couverte par l'éolien et le solaire selon les conditions météorologiques.
+
+Les graphiques sont actuellement affichés directement dans les notebooks.
+
+## Premiers résultats
+
+L'analyse de la base fusionnée met en évidence plusieurs relations statistiques.
+
+| Variables étudiées | Corrélation de Pearson |
 |---|---:|
-| Vitesse du vent / production éolienne | **0,794** |
-| Rayonnement solaire / production solaire | **0,878** |
-| Température / consommation électrique | **−0,589** |
-| Température / charge résiduelle | **−0,650** |
+| Vent et production éolienne | 0,794 |
+| Rayonnement solaire et production solaire | 0,878 |
+| Température et consommation | −0,589 |
+| Température et charge résiduelle | −0,650 |
 
-Les résultats mettent en évidence des associations entre conditions météorologiques et fonctionnement du système électrique. **Une corrélation ne démontre pas à elle seule un effet causal** : les saisons, les heures de la journée et les évolutions du parc de production peuvent intervenir dans ces relations.
+Ces résultats suggèrent :
 
-Le notebook RTE fait aussi apparaître une consommation plus élevée en hiver et des profils saisonniers différents pour la production solaire et la production éolienne.
+- Une association positive importante entre la vitesse du vent et la production éolienne.
+- Une association positive importante entre le rayonnement solaire et la production photovoltaïque.
+- Une association négative entre la température et la consommation électrique sur la période étudiée.
+- Une association négative entre la température et la charge résiduelle.
+
+L'analyse RTE révèle également des variations journalières et saisonnières marquées de la consommation, ainsi que des profils saisonniers différents pour les productions éolienne et solaire.
+
+Ces résultats sont **descriptifs**. Ils ne permettent pas, à eux seuls, d'établir des relations causales.
 
 ## Installation et exécution
 
 ### Prérequis
 
-- Python 3 ;
-- les dépendances du fichier `requirements.txt` (notamment `pandas`, `numpy`, `matplotlib` et `seaborn`) ;
-- une connexion Internet pour actualiser les données.
+- Python 3.
+- Les bibliothèques nécessaires, notamment `pandas`, `numpy`, `matplotlib` et `seaborn`.
+- Une connexion Internet pour actualiser les données.
+
+### Installation
 
 Créer un environnement virtuel :
 
@@ -124,13 +199,13 @@ Créer un environnement virtuel :
 python -m venv .venv
 ```
 
-L'activer sous Windows (CMD) :
+Sous Windows, l'activer avec :
 
 ```bat
 .venv\Scripts\activate
 ```
 
-Ou sous macOS / Linux :
+Sous macOS ou Linux :
 
 ```bash
 source .venv/bin/activate
@@ -142,7 +217,7 @@ Installer ensuite les dépendances :
 python -m pip install -r requirements.txt
 ```
 
-### Télécharger les données
+### Collecte des données
 
 Depuis la racine du projet :
 
@@ -150,38 +225,74 @@ Depuis la racine du projet :
 python collecte_historique_sans_entsoe.py
 ```
 
+<<<<<<< HEAD
 Les fichiers utilisés par les notebooks sont :
 
 - `data/df_rte.csv` ;
-- `data/df_meteo.csv`.
+- `data/df_rte.csv`
+- `data/df_meteo.csv`
 
-**Aucune clé API n'est requise.** Les données sont conservées séparément avant les analyses.
+Aucune clé API personnelle n'est nécessaire.
 
-### Exécuter les notebooks
+### Exécution des notebooks
 
-Ouvrir les notebooks avec VS Code ou Jupyter. **Attention aux chemins relatifs actuellement présents dans le code :**
+Les analyses peuvent être exécutées dans VS Code ou Jupyter.
 
-- `analyse_rte(1).ipynb` lit `data/df_rte.csv` et suppose que le répertoire de travail est la **racine du projet** ;
-- `exploration_meteo.ipynb` lit `../data/df_rte.csv` et `../data/df_meteo.csv` et suppose que le répertoire de travail est le dossier **`notebooks/`**.
+Les chemins relatifs actuellement utilisés sont différents selon les notebooks :
 
-Vérifier le répertoire de travail de Jupyter avant d'exécuter toutes les cellules.
+- `analyse_rte(1).ipynb` utilise `data/df_rte.csv` et suppose un répertoire de travail correspondant à la racine du projet.
+- `exploration_meteo.ipynb` utilise `../data/df_rte.csv` et `../data/df_meteo.csv` et suppose un répertoire de travail correspondant au dossier `notebooks/`.
+
+Il faut donc vérifier le répertoire de travail Jupyter avant l'exécution.
 
 ## Limites et améliorations possibles
 
-- **Représentativité météo :** trois villes ne suffisent pas à résumer précisément l'ensemble du territoire français. Un échantillonnage spatial plus large ou pondéré améliorerait l'analyse.
-- **Harmonisation horaire :** la fusion actuelle retient uniquement les observations RTE aux heures pleines. Une moyenne des demi-heures, accompagnée d'un contrôle des périodes manquantes, serait préférable.
-- **Fuseaux horaires :** le notebook RTE travaille en heure de Paris, tandis que la fusion météo utilise l'UTC. Certains commentaires ou libellés du notebook RTE doivent être harmonisés avec ce choix.
-- **Classes de rayonnement :** les quartiles construits avec un classement des valeurs peuvent séparer arbitrairement des heures ayant un rayonnement nul ; les étiquettes « nuit », « couvert », etc. doivent donc être interprétées avec prudence.
-- **Interprétation :** les analyses sont descriptives ; elles ne permettent ni d'établir une causalité ni de déduire directement des prix négatifs ou une saturation du réseau.
+### Représentativité météorologique
 
-Les prochaines pistes de travail sont l'amélioration de la fusion temporelle, les comparaisons entre années et saisons, ainsi qu'une analyse statistique tenant compte des effets calendaires.
+Les données proviennent uniquement de trois villes. Leur moyenne ne représente pas précisément les conditions météorologiques sur l'ensemble du territoire français.
+
+Une extension à davantage de points géographiques permettrait d'améliorer cette approximation.
+
+### Harmonisation temporelle
+
+La fusion actuelle utilise les observations RTE aux heures pleines, plutôt que la moyenne des deux demi-heures.
+
+Une harmonisation plus rigoureuse et un contrôle des observations manquantes pourraient améliorer les résultats.
+
+### Fuseaux horaires
+
+L'analyse RTE utilise l'heure française, tandis que le croisement des bases repose sur l'UTC.
+
+Certains libellés et commentaires doivent être harmonisés pour éviter toute ambiguïté.
+
+### Interprétation statistique
+
+Les corrélations peuvent être influencées par les saisons, les heures de la journée, la structure du parc électrique et d'autres facteurs non pris en compte.
+
+De plus, certaines classes de rayonnement créées à partir des quartiles peuvent regrouper des observations de rayonnement nul. Les appellations météorologiques de ces classes doivent donc être interprétées avec prudence.
+
+### Perspectives
+
+Les prochaines étapes envisagées sont :
+
+- Améliorer l'harmonisation temporelle des bases.
+- Comparer les relations observées selon les années et les saisons.
+- Étudier plus précisément les périodes de faible charge résiduelle.
+- Approfondir les analyses statistiques en tenant compte des variations calendaires.
 
 ## Reproductibilité
 
-Le code et les notebooks sont versionnés avec Git. Les données sont issues de RTE et Open-Meteo et peuvent être téléchargées à nouveau à l'aide du script de collecte. Les CSV volumineux peuvent être conservés localement et exclus du dépôt via `.gitignore`.
+Le projet privilégie une démarche reproductible.
+
+Les données sont issues de sources identifiées et récupérées par un script Python. Les traitements et analyses sont documentés dans les notebooks.
+
+Le code est suivi avec Git et GitHub, et les dépendances sont regroupées dans `requirements.txt`.
+
+Les fichiers de données volumineux peuvent être conservés localement et régénérés à partir du script de collecte.
 
 ## Auteurs
 
-**Elyes · Melchior · Romain**  
-Projet réalisé dans le cadre du cours **Python pour la Data Science**.
+**Elyes · Melchior · Romain**
 
+Projet réalisé dans le cadre du cours **Python pour la Data Science**.
+>>>>>>> origin/Elyes
